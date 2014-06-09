@@ -1,0 +1,245 @@
+<!doctype html>
+
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+
+	<title>Trocurinhas</title>
+	<meta name="description" content="Trocurinhas">
+	<meta name="author" content="Stutz Soluções">
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <link rel="stylesheet" href="css/reset.css">
+	<link href='http://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400|Cabin+Condensed:400,700|Arimo:400,700' rel='stylesheet' type='text/css'>
+
+<!--
+	<script src="http://cdnjs.cloudflare.com/ajax/libs/knockout/3.1.0/knockout-min.js"></script>
+	<script	src="http://ajax.googleapis.com/ajax/libs/jquery/1.11.1/jquery.min.js"></script>
+	<script	src="http://ajax.googleapis.com/ajax/libs/jquerymobile/1.4.2/jquery.mobile.min.js"></script>
+-->
+	<link rel="stylesheet" href="app.html.css">
+  <script src="js/mqttws31.js"></script>
+  <script src="js/knockout-min.js"></script>
+  <script src="js/jquery.min.js"></script>
+  <script src="js/MQTTConnectionManager.js"></script>
+  <script src="js/InteractionModel.js"></script>
+  <script src="app.html.js"></script>
+
+	<!--[if lt IE 9]>
+		<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+	<![endif]-->
+</head>
+
+<body>
+	
+     <header class="app-header" data-bind="with: currentInteraction().currentState">
+      <div class="left-button">
+        <span data-bind="visible: cancelButtonText == null">&nbsp;</span>
+        <span class="cancel" data-bind="text: cancelButtonText, click: $root.currentInteraction().cancelAction, visible: cancelButtonText != null"></span>
+      </div>
+      <h1 id="section-title" data-bind="text: view.pageTitle"></h1>
+      <div class="right-button">
+        <span class="confirm" data-bind="text: confirmButtonText, click: $root.currentInteraction().confirmAction, visible: confirmButtonText != null"></span>
+      </div>
+    </header>
+
+    <article id="welcome" data-bind="visible: currentInteraction() == interactionWelcome, with: interactionWelcome">
+
+      <section class="listagem" data-bind="with: currentState().view">
+        <header>
+          <aside>Indique abaixo quais figurinhas <strong>faltam para você</strong> completar o álbum</aside>
+        </header>
+
+        <div class="figurinhas-container lista-figurinhas lista-figurinhas-repetidas" data-bind="foreach: items">
+          <div class="figurinha">
+            <button
+              data-bind="text: number, 
+                      click: $parent.toggleSelection,
+                      css: { selected: selected() }"></button>
+          </div>
+        </div>
+        
+      </section>
+
+    </article>
+ 
+    <article id="figurinhas-procuradas" data-bind="visible: currentInteraction() == interactionNeededStickers, with: interactionNeededStickers">
+
+      <section class="listagem" data-bind="with: $root.viewNeededStickers, visible: currentState().view == $root.viewNeededStickers">
+
+        <div class="figurinhas-container lista-figurinhas lista-figurinhas-procuradas" data-bind="foreach: items">
+          <div class="figurinha">
+            <button
+              data-bind="text: number, 
+                      click: $parent.toggleSelection,
+                      css: { selected: selected() }"></button>
+          </div>
+        </div>
+        
+      </section>
+
+    </article>
+
+    <article id="figurinhas-repetidas" data-bind="visible: currentInteraction() == interactionAvailableStickers, with: interactionAvailableStickers">
+
+      <section class="listagem" data-bind="with: $root.viewAvailableStickers, visible: currentState().view == $root.viewAvailableStickers">
+
+        <div class="figurinhas-container lista-figurinhas lista-figurinhas-repetidas" data-bind="foreach: items">
+          <div class="figurinha">
+            <button
+              data-bind="text: number, 
+                      click: $parent.toggleSelection,
+                      css: { selected: selected() }"></button>
+          </div>
+        </div>
+
+      </section>
+
+    </article>
+
+    <article id="trocar-agora" data-bind="visible: currentInteraction() == interactionExchangeNow, with: interactionExchangeNow">
+
+      <section data-bind="with: $root.viewConnect, visible: currentState().view == $root.viewConnect">
+
+        <header>
+          <aside>
+			Não é preciso se cadastrar! Preencha o formulário abaixo e o aplicativo listará pessoas que estão no mesmo bairro que você querendo trocar as figurinhas           </aside>
+        </header> 
+
+        <form class="form-connect" data-bind="submit: $root.connectToMQTTServer">
+          
+          <div class="form-field">
+            <input type="text" placeholder="Nome ou Apelido" data-bind="value: nickname" />
+            <div class="input-subtitle">Ex.: Tiãozinho</div>
+          </div>
+          
+          <div class="form-field">
+            <input type="text" placeholder="Onde quer trocar as figurinhas?" data-bind="value: place" />
+            <div class="input-subtitle">Ex.: Banca da 406 Norte 13h30 / jbatista@gmail.com / 61-8888-8888</div>
+          </div>
+
+          <div class="form-field">
+            <input type="text" placeholder="Como te identificar?" data-bind="value: selfInfo" />
+            <div class="input-subtitle">Ex.: Boné vermelho / http://fb.com/jbatista</div>
+          </div>
+
+          <div data-bind="visible: !$root.mqttConnecting()">
+            <button type="submit">Conectar</button>
+          </div>
+          <div data-bind="visible: $root.mqttConnecting()">
+            <button disabled="true">Conectando...</button>
+          </div>
+
+        </form>
+
+      </section>
+
+      <section class="pessoas" data-bind="with: $root.viewNearPeople, visible: currentState().view == $root.viewNearPeople">
+          <ul data-bind="foreach: connectedPeople">
+            <li data-bind="click: $parent.selectPeer">
+
+              <div class="grupo">
+
+                <div class="col-identificacao">
+                  <h2 data-bind="text: nickname"></h2>
+                  <div>
+                    <em data-bind="text: place"></em>
+                  </div>
+                  <aside data-bind="text: timeElapsedInfo"></aside>
+                </div>
+                
+                <div class="col-action">&gt;</div>                  
+                <div class="col-quantidade">
+                  <span>-</span><span data-bind="text: stickersForGivingToPeer.length"></span>
+                </div>
+                <div class="col-quantidade" style="background: #A75353">
+                  <span>+</span><span data-bind="text: stickersForReceivingFromPeer.length"></span>
+                </div>
+
+              </div>              
+
+            </li>
+
+          </ul>
+      </section>  
+
+      <section class="arena-troca" data-bind="with: $root.viewExchangingArena, visible: currentState().view == $root.viewExchangingArena">
+          <div class="identificacao">
+            <h2 data-bind="text: currentPeer().nickname"></h2>
+            <h3>
+                <strong>\o/</strong><span data-bind="text: currentPeer().selfInfo"></span>
+            </h3>
+            <aside>
+              <strong>=|=</strong><span data-bind="text: currentPeer().place"></span>
+            </aside>
+          </div>
+          <div class="subtitle">
+            <nav>
+              <div>
+                Você precisa <span class="needed-subtitle" data-bind="text: currentPeer().stickersForReceivingFromPeer.length"></span>
+              </div>  
+              <div>
+                Ele precisa <span class="available-subtitle" data-bind="text: currentPeer().stickersForGivingToPeer.length"></span>
+              </div>
+
+            </nav>
+          </div>
+
+          <div style="clear:both"></div>
+          <div class="listagens">
+            <div class="lista-figurinhas" data-bind="foreach: combinedStickers">
+              <div class="figurinha" data-bind="css : $parent.isProcurada($data) ">
+                <button
+                  data-bind="text: number, 
+                          click: $parent.toggleSelection,
+                          css: { selected: selected }"></button>
+              </div>
+            </div>
+            
+          </div>
+      </section>
+
+    </article>
+
+    <footer class="app-footer" data-bind="visible: !firstTimeRunning()">
+      <nav>
+        <ul>
+          <li class="first" data-bind="css: { active: currentInteraction().id == 2 }, click: interactionNeededStickers.bring">
+            <div style="letter-spacing: 2px">]]]?]</div>
+            Faltando
+          </li>
+          <li class="mid" data-bind="css: { active: currentInteraction().id == 3 }, click: interactionAvailableStickers.bring">
+            <div style="letter-spacing: 2px">[[[[[</div>
+            Repetidas
+          </li>
+          <li class="last" data-bind="css: { active: currentInteraction().id == 4 }, click: interactionExchangeNow.bring">
+            <div style="font-family: monospace; font-size:14px; letter-spacing: 0px;">
+              \<span style="font-size:10px">o</span>/
+            </div>
+            Trocar agora
+          </li>
+        </ul>
+      </nav>
+    </footer>
+
+  <script>
+    var vm = new AppViewModel();
+    ko.applyBindings(vm);
+  </script>
+
+  <script>
+    (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+    (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+    m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+    })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+    ga('create', 'UA-35435323-7', 'trocurinhas.com');
+    ga('send', 'pageview');
+  </script>
+
+</body>
+</html>
+
